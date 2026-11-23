@@ -12,6 +12,16 @@ function child(parent, tag, value, cls) {
   parent.append(node);
   return node;
 }
+function chineseCount(raw, daily) {
+  const match = String(raw).trim().match(/^(\d+(?:,\d{3})*(?:\.\d+)?)\s*([KMB]?)$/i);
+  if (!match) return null;
+  const multipliers = { "": 1, K: 1e3, M: 1e6, B: 1e9 };
+  const count = Number(match[1].replaceAll(",", "")) * multipliers[match[2].toUpperCase()];
+  const unit = count >= 1e8 ? "亿" : count >= 1e4 ? "万" : "";
+  const scaled = count / ({ "亿": 1e8, "万": 1e4, "": 1 }[unit]);
+  const number = scaled.toFixed(unit ? 2 : 0).replace(/\.00$/, "");
+  return (daily ? "+" : "") + number + (unit ? " " + unit : "");
+}
 function render() {
   if (!records) return;
   const query = el("search").value.trim().toLowerCase();
@@ -43,7 +53,11 @@ function render() {
     }
     if (zh && zh !== original) child(cell,"small",zh);
     child(cell,"small",details.join(" · "));
-    child(row,"strong",r[config[active][3]]);
+    const raw = r[config[active][3]];
+    const count = child(row,"div","","count");
+    const formatted = chineseCount(raw, active === "daily");
+    child(count,"strong",formatted ?? String(raw ?? "—"));
+    if (formatted !== null) child(count,"small",String(raw));
   }
   el("status").textContent = rows.children.length ? `显示 ${rows.children.length} / ${records.length} 条记录` : "没有匹配的记录";
 }
