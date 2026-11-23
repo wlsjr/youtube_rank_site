@@ -24,7 +24,19 @@ function render() {
     if (![original, zh, r.channel, ...details].join(" ").toLowerCase().includes(query)) continue;
     const row = child(rows,"div","","row");
     child(row,"span",String(r.rank).padStart(2,"0"),"rank");
-    const cell = child(row,"div");
+    const item = child(row,"div","","entry");
+    const frame = child(item,"div","","thumb " + (active === "channels" ? "avatar" : "cover"));
+    frame.textContent = (original || "").slice(0,1);
+    frame.setAttribute("aria-hidden","true");
+    if (r.thumbnail && /^data\/thumbnails\/[a-zA-Z0-9_-]+\.jpg$/.test(r.thumbnail)) {
+      const img = document.createElement("img");
+      img.alt = "";
+      img.loading = "lazy";
+      img.onerror = () => img.remove();
+      img.src = "./" + r.thumbnail;
+      frame.append(img);
+    }
+    const cell = child(item,"div","","caption");
     const link = child(cell,"a",original,"name");
     if (/^https:\/\/(www\.)?youtube\.com\//i.test(r.url)) {
       link.href = r.url; link.target = "_blank"; link.rel = "noopener noreferrer";
@@ -36,7 +48,7 @@ function render() {
   el("status").textContent = rows.children.length ? `显示 ${rows.children.length} / ${records.length} 条记录` : "没有匹配的记录";
 }
 async function selectBoard(key) {
-  active = key; records = null;
+  active = key; records = null; el("updated").textContent = "";
   const [heading,label,metric] = config[key];
   el("heading").textContent = heading; el("itemLabel").textContent = label; el("metric").textContent = metric;
   for (const b of document.querySelectorAll("[data-board]")) b.setAttribute("aria-pressed",b.dataset.board === key);
@@ -46,6 +58,14 @@ async function selectBoard(key) {
     if (!res.ok) throw Error();
     const data = await res.json();
     if (active !== key) return;
+    const timestamp = new Date(data[0]?.updatedAt || "");
+    if (Number.isFinite(timestamp.getTime())) {
+      const formatted = new Intl.DateTimeFormat("zh-CN", {
+        timeZone:"Asia/Shanghai", year:"numeric", month:"2-digit", day:"2-digit",
+        hour:"2-digit", minute:"2-digit", hourCycle:"h23"
+      }).format(timestamp);
+      el("updated").textContent = "最近更新（北京时间） " + formatted;
+    }
     records = data; render();
   } catch { if (active === key) el("status").textContent = "读取失败，请刷新页面重试。"; }
 }
